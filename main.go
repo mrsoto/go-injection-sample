@@ -3,6 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
+
+	"context"
 
 	"github.com/gin-gonic/gin"
 )
@@ -45,11 +48,26 @@ func newAlbumDto(a album) albumDto {
 
 // getAlbums responds with the list of all albums as JSON.
 func getAlbums(c *gin.Context) {
-	albumsDto := make([]albumDto, 0, len(albums))
-	for _, a := range albums {
-		albumsDto = append(albumsDto, newAlbumDto(a))
+	toCtx, cancel := context.WithTimeout(c, 1*time.Millisecond)
+	ch := make(chan []albumDto, 1)
+
+	go func() {
+		defer cancel()
+		albumsDto := make([]albumDto, 0, len(albums))
+		//time.Sleep(time.Second * 10)
+		for _, a := range albums {
+			albumsDto = append(albumsDto, newAlbumDto(a))
+		}
+		ch <- albumsDto
+	}()
+
+	select {
+	case <-toCtx.Done():
+		err := c.AbortWithError(http.StatusRequestTimeout, toCtx.Err())
+		log.Printf("Error: %v", err)
+	case albumsDto := <-ch:
+		c.JSON(http.StatusOK, albumsDto)
 	}
-	c.JSON(http.StatusOK, albumsDto)
 }
 
 // getAlbumByID locates the album whose ID value matches the id
@@ -84,6 +102,7 @@ func postAlbums(c *gin.Context) {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags)
 	router := gin.Default()
 	router.GET("/albums", getAlbums)
 	router.GET("/albums/:id", getAlbumByID)
