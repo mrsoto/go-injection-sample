@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"context"
@@ -46,6 +47,15 @@ func newAlbumDto(a album) albumDto {
 	}
 }
 
+func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
+	if s, ok := c.GetQuery("sleep"); ok {
+		if v, err := strconv.Atoi(s); err == nil {
+			return int64(v), true
+		}
+	}
+	return 0, false
+}
+
 // getAlbums responds with the list of all albums as JSON.
 func getAlbums(c *gin.Context) {
 	toCtx, cancel := context.WithTimeout(c, 1*time.Millisecond)
@@ -54,11 +64,24 @@ func getAlbums(c *gin.Context) {
 	go func() {
 		defer cancel()
 		albumsDto := make([]albumDto, 0, len(albums))
-		//time.Sleep(time.Second * 10)
+
+		sleepMs, sleepOk := getIntParam(c, "sleep")
+		log.Printf("sleep: %v %d\n", sleepOk, sleepMs)
+	outher:
 		for _, a := range albums {
-			albumsDto = append(albumsDto, newAlbumDto(a))
+			select {
+			case <-toCtx.Done():
+				break outher
+			default:
+				albumsDto = append(albumsDto, newAlbumDto(a))
+				log.Printf("Album: %s\n", a.ID)
+				if sleepOk {
+					time.Sleep(time.Duration(sleepMs) * time.Millisecond)
+				}
+			}
 		}
 		ch <- albumsDto
+		close(ch)
 	}()
 
 	select {
