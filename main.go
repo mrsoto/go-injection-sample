@@ -63,10 +63,13 @@ func getAlbums(c *gin.Context) {
 
 	go func() {
 		defer cancel()
+		defer close(ch)
+
 		albumsDto := make([]albumDto, 0, len(albums))
 
 		sleepMs, sleepOk := getIntParam(c, "sleep")
 		log.Printf("sleep: %v %d\n", sleepOk, sleepMs)
+
 	outher:
 		for _, a := range albums {
 			select {
@@ -81,7 +84,6 @@ func getAlbums(c *gin.Context) {
 			}
 		}
 		ch <- albumsDto
-		close(ch)
 	}()
 
 	select {
