@@ -2,6 +2,7 @@ package main
 
 import (
 	"example/web-service-gin/album"
+	repository "example/web-service-gin/album/private/persistence"
 	"example/web-service-gin/router"
 	"log"
 
@@ -12,7 +13,8 @@ func main() {
 	log.SetFlags(log.LstdFlags)
 	r := gin.Default()
 
-	albumSrvs := album.NewServices()
+	repository := repository.NewInMemoryRepository()
+	albumSrvs := album.NewServices(repository)
 
 	router.RegisterRoutes(r, router.Controller{
 		GetAbums:     albumSrvs.GetAlbums,

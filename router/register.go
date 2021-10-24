@@ -4,10 +4,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type GetAbums = gin.HandlerFunc
+type GetAlbumByID = gin.HandlerFunc
+type PostAlbums = gin.HandlerFunc
+
 type Controller struct {
-	GetAbums     gin.HandlerFunc
-	GetAlbumByID gin.HandlerFunc
-	PostAlbums   gin.HandlerFunc
+	GetAbums
+	GetAlbumByID
+	PostAlbums
 }
 
 func RegisterRoutes(router *gin.Engine, c Controller) {

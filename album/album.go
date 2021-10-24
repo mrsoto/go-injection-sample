@@ -7,16 +7,10 @@ import (
 	"strconv"
 	"time"
 
+	"example/web-service-gin/album/private/persistence"
+
 	"github.com/gin-gonic/gin"
 )
-
-// album represents data about a record album.
-type album struct {
-	ID     string
-	Title  string
-	Artist string
-	Price  float64
-}
 
 // album represents data about a record album.
 type albumDto struct {
@@ -25,28 +19,21 @@ type albumDto struct {
 	Artist     string  `json:"artist"`
 	Price      float64 `json:"price"`
 	Discount   float32 `json:"discount"`
-	FinalPrice float32 `json:"final-price"`
+	FinalPrice float64 `json:"final-price"`
 }
 
-// albums slice to seed record album data.
-var albums = []album{
-	{ID: "1", Title: "Blue Train", Artist: "John Coltrane", Price: 56.99},
-	{ID: "2", Title: "Jeru", Artist: "Gerry Mulligan", Price: 17.99},
-	{ID: "3", Title: "Sarah Vaughan and Clifford Brown", Artist: "Sarah Vaughan", Price: 39.99},
+func newAlbum(a albumDto) persistence.Album {
+	return persistence.Album{ID: a.ID, Title: a.Title, Artist: a.Artist, Price: a.Price}
 }
 
-func newAlbum(a albumDto) album {
-	return album{ID: a.ID, Title: a.Title, Artist: a.Artist, Price: a.Price}
-}
-
-func newAlbumDto(a album) albumDto {
+func newAlbumDto(a persistence.Album) albumDto {
 	return albumDto{
 		ID:         a.ID,
 		Title:      a.Title,
 		Artist:     a.Artist,
 		Price:      a.Price,
 		Discount:   0.5,
-		FinalPrice: float32(a.Price) * 0.5,
+		FinalPrice: float64(a.Price) * 0.5,
 	}
 }
 
@@ -68,11 +55,19 @@ func (s Services) GetAlbums(c *gin.Context) {
 		defer cancel()
 		defer close(ch)
 
-		albumsDto := make([]albumDto, 0, len(albums))
-
 		sleepMs, sleepOk := getIntParam(c, "sleep")
 		log.Printf("sleep: %v %d\n", sleepOk, sleepMs)
 
+		albums, err := s.r.GetAlbums(c)
+		if err != nil {
+			if err := c.AbortWithError(http.StatusBadRequest, toCtx.Err()); err != nil {
+				log.Println(err)
+			}
+
+			return
+		}
+
+		albumsDto := make([]albumDto, 0, len(albums))
 	outher:
 		for _, a := range albums {
 			select {
@@ -101,17 +96,14 @@ func (s Services) GetAlbums(c *gin.Context) {
 // getAlbumByID locates the album whose ID value matches the id
 // parameter sent by the client, then returns that album as a response.
 func (s Services) GetAlbumByID(c *gin.Context) {
-	id := c.Param("id")
-
-	// Loop over the list of albums, looking for
-	// an album whose ID value matches the parameter.
-	for _, a := range albums {
-		if a.ID == id {
-			c.JSON(http.StatusOK, newAlbumDto(a))
-			return
+	if id := c.Param("id"); len(id) != 0 {
+		a, err := s.r.GetAlbumByID(id, c)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"message": "album not found"})
 		}
+		c.JSON(http.StatusOK, newAlbumDto(a))
 	}
-	c.JSON(http.StatusNotFound, gin.H{"message": "album not found"})
+	c.AbortWithStatus(http.StatusBadRequest)
 }
 
 // postAlbums adds an album from JSON received in the request body.
@@ -121,17 +113,28 @@ func (s Services) PostAlbums(c *gin.Context) {
 	// Call BindJSON to bind the received JSON to
 	// newAlbum.
 	if err := c.BindJSON(&nAlbum); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "album not parsed"})
 		return
 	}
 
-	// Add the new album to the slice.
-	albums = append(albums, newAlbum(nAlbum))
+	a := persistence.Album{ID: nAlbum.ID, Title: nAlbum.Artist, Artist: nAlbum.Artist, Price: nAlbum.Price}
+	if err := s.r.AddAlbum(a, c); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "album not accepted"})
+		return
+	}
 	c.IndentedJSON(http.StatusCreated, newAlbum)
 }
 
-type Services struct {
+type Repository interface {
+	GetAlbums(context.Context) ([]persistence.Album, error)
+	GetAlbumByID(string, context.Context) (persistence.Album, error)
+	AddAlbum(persistence.Album, context.Context) error
 }
 
-func NewServices() Services {
-	return Services{}
+type Services struct {
+	r Repository
+}
+
+func NewServices(r Repository) Services {
+	return Services{r: r}
 }
