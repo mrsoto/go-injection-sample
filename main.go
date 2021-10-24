@@ -13,8 +13,11 @@ func main() {
 	log.SetFlags(log.LstdFlags)
 	r := gin.Default()
 
+	rootCfg := router.Config{BaseUrl: "http://localhost:8080"}
+	albumCfg := rootCfg.Child("albums")
+
 	repository := persistence.NewInMemoryRepository()
-	albumCtrl := album.NewController(repository)
+	albumCtrl := album.NewController(repository, albumCfg)
 	router.RegisterRoutes(r, albumCtrl)
 
 	if err := r.Run("localhost:8080"); err != nil {

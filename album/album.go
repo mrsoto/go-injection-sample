@@ -2,6 +2,7 @@ package album
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +13,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type oData struct {
+	Url string `json:"href"`
+	All string `json:"collection"`
+}
+
 // album represents data about a record album.
 type albumDto struct {
 	ID         string  `json:"id"`
@@ -20,10 +26,11 @@ type albumDto struct {
 	Price      float64 `json:"price"`
 	Discount   float32 `json:"discount"`
 	FinalPrice float64 `json:"final-price"`
+	Link       oData   `json:"$links"`
 }
 
 func newAlbum(a albumDto) persistence.Album {
-	return persistence.Album{ID: a.ID, Title: a.Title, Artist: a.Artist, Price: a.Price}
+	return persistence.NewAlbum(a.ID, a.Title, a.Artist, a.Price)
 }
 
 func newAlbumDto(a persistence.Album) albumDto {
@@ -35,6 +42,14 @@ func newAlbumDto(a persistence.Album) albumDto {
 		Discount:   0.5,
 		FinalPrice: float64(a.Price) * 0.5,
 	}
+}
+
+func (s Controller) addOData(a albumDto) albumDto {
+	a.Link = oData{
+		Url: fmt.Sprintf("%s/%s", s.config.GetBaseUrl(), a.ID),
+		All: s.config.GetBaseUrl(),
+	}
+	return a
 }
 
 func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
@@ -74,7 +89,7 @@ func (s Controller) GetAlbums(c *gin.Context) {
 			case <-toCtx.Done():
 				break outher
 			default:
-				albumsDto = append(albumsDto, newAlbumDto(a))
+				albumsDto = append(albumsDto, s.addOData(newAlbumDto(a)))
 				log.Printf("Album: %s\n", a.ID)
 				if sleepOk {
 					time.Sleep(time.Duration(sleepMs) * time.Millisecond)
@@ -101,28 +116,27 @@ func (s Controller) GetAlbumByID(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"message": "album not found"})
 		}
-		c.JSON(http.StatusOK, newAlbumDto(a))
+		c.JSON(http.StatusOK, s.addOData(newAlbumDto(a)))
 	}
 	c.AbortWithStatus(http.StatusBadRequest)
 }
 
 // postAlbums adds an album from JSON received in the request body.
 func (s Controller) PostAlbums(c *gin.Context) {
-	var nAlbum albumDto
+	var nAlbumDto albumDto
 
 	// Call BindJSON to bind the received JSON to
 	// newAlbum.
-	if err := c.BindJSON(&nAlbum); err != nil {
+	if err := c.BindJSON(&nAlbumDto); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "album not parsed"})
 		return
 	}
-
-	a := persistence.Album{ID: nAlbum.ID, Title: nAlbum.Artist, Artist: nAlbum.Artist, Price: nAlbum.Price}
+	a := newAlbum(nAlbumDto)
 	if err := s.r.AddAlbum(a, c); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "album not accepted"})
 		return
 	}
-	c.IndentedJSON(http.StatusCreated, newAlbum)
+	c.IndentedJSON(http.StatusCreated, s.addOData(nAlbumDto))
 }
 
 type Repository interface {
@@ -131,10 +145,15 @@ type Repository interface {
 	AddAlbum(persistence.Album, context.Context) error
 }
 
-type Controller struct {
-	r Repository
+type Config interface {
+	GetBaseUrl() string
 }
 
-func NewController(r Repository) Controller {
-	return Controller{r: r}
+type Controller struct {
+	r      Repository
+	config Config
+}
+
+func NewController(r Repository, config Config) Controller {
+	return Controller{r: r, config: config}
 }
