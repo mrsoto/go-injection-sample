@@ -21,7 +21,7 @@ run: linter build
 
 watch: 
 	ulimit -n 100
-	reflex -s -g '**/*.go' make run
+	reflex -s -g '**/*.go' -G '**/*_test.go' make run
 
 installReflect:
 	go install github.com/cespare/reflex@latest
