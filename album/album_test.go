@@ -1,11 +1,13 @@
 package album
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"example/web-service-gin/album/private/persistence"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -42,15 +44,20 @@ func init() {
 	}
 }
 
+func (r RepositoryStub) AddAlbum(persistence.Album, context.Context) error {
+	return nil
+}
+
 func (r RepositoryStub) GetAlbumByID(id string, c context.Context) (persistence.Album, error) {
-	if id == "0" {
-		return persistence.Album{}, errors.New("not found")
-	}
 	return albums[0], nil
 }
 
 func (r RepositoryStub) GetAlbums(c context.Context) ([]persistence.Album, error) {
 	return albums, nil
+}
+
+func (r RepositoryFailuresStub) GetAlbumByID(id string, c context.Context) (persistence.Album, error) {
+	return persistence.Album{}, errors.New("not found")
 }
 
 func (r RepositoryFailuresStub) GetAlbums(c context.Context) ([]persistence.Album, error) {
@@ -63,32 +70,34 @@ func (c configStub) GetBaseUrl() string {
 	return "https://sample.com/albums"
 }
 
-func setGetAlbumRouter(url string) (*http.Request, *httptest.ResponseRecorder) {
-	r := gin.New()
-	ctrl := NewController(RepositoryStub{}, configStub{})
-
-	r.GET("/albums", ctrl.GetAlbums)
-	r.GET("/albums/:id", ctrl.GetAlbumByID)
-	r.POST("/albums", ctrl.PostAlbums)
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		panic(err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-	return req, w
-}
-
 func setGetAlbumsRouter(ctrl Controller, url string) (*http.Request, *httptest.ResponseRecorder) {
 	r := gin.New()
 
 	r.GET("/albums", ctrl.GetAlbums)
-	r.POST("/albums", ctrl.PostAlbums)
+	r.GET("/albums/:id", ctrl.GetAlbumByID)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return req, w
+}
+
+func setPostAlbumsRouter(ctrl Controller, a albumDto) (*http.Request, *httptest.ResponseRecorder) {
+	r := gin.New()
+
+	r.POST("/albums", ctrl.PostAlbums)
+
+	b, err := json.Marshal(a)
+	if err != nil {
+		log.Fatal(err)
+	}
+	body := bytes.NewBuffer(b)
+	req, err := http.NewRequest(http.MethodPost, "/albums", body)
 	if err != nil {
 		panic(err)
 	}
@@ -98,8 +107,10 @@ func setGetAlbumsRouter(ctrl Controller, url string) (*http.Request, *httptest.R
 	r.ServeHTTP(w, req)
 	return req, w
 }
+
 func Test_GetAlbumByID_whenFound(t *testing.T) {
-	_, w := setGetAlbumRouter("/albums/1")
+	ctrl := NewController(RepositoryStub{}, configStub{})
+	_, w := setGetAlbumsRouter(ctrl, "/albums/1")
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	body, err := ioutil.ReadAll(w.Body)
@@ -120,15 +131,10 @@ func Test_GetAlbumByID_whenFound(t *testing.T) {
 }
 
 func Test_GetAlbumByID_whenNotFound(t *testing.T) {
-	_, w := setGetAlbumRouter("/albums/0")
+	ctrl := NewController(RepositoryFailuresStub{}, configStub{})
+	_, w := setGetAlbumsRouter(ctrl, "/albums/1")
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
-}
-
-func Test_GetAlbumByID_whenInvalidRequest(t *testing.T) {
-	_, w := setGetAlbumRouter("/albums/")
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
 func Test_GetAlbumsWhenOk(t *testing.T) {
@@ -163,5 +169,39 @@ func Test_GetAlbumsWhenDBFail(t *testing.T) {
 	ctrl := NewController(RepositoryFailuresStub{}, configStub{})
 	_, w := setGetAlbumsRouter(ctrl, "/albums")
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+}
+
+func Test_PostAlbumByID_whenSuccess(t *testing.T) {
+	ctrl := NewController(RepositoryStub{}, configStub{})
+	a := albumDto{
+		ID:         "4",
+		Title:      "Harry",
+		Artist:     "Mary",
+		Price:      300,
+		FinalPrice: 150,
+		Discount:   0.5,
+		Link: oData{
+			Url: "https://sample.com/albums/4",
+			All: "https://sample.com/albums",
+		},
+	}
+	_, w := setPostAlbumsRouter(ctrl, a)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	body, err := ioutil.ReadAll(w.Body)
+	if err != nil {
+		t.Error(err)
+	}
+
+	actual := albumDto{}
+	if err := json.Unmarshal(body, &actual); err != nil {
+		t.Error(err)
+	}
+	expected := a
+
+	if diff := deep.Equal(actual, expected); diff != nil {
+		t.Error(diff)
+	}
 
 }

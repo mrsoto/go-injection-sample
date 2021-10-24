@@ -63,7 +63,7 @@ func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
 
 // getAlbums responds with the list of all albums as JSON.
 func (s Controller) GetAlbums(c *gin.Context) {
-	toCtx, cancel := context.WithTimeout(c, 1*time.Millisecond)
+	toCtx, cancel := context.WithTimeout(c, 10*time.Millisecond)
 	ch := make(chan []albumDto, 1)
 
 	go func() {
@@ -75,10 +75,7 @@ func (s Controller) GetAlbums(c *gin.Context) {
 
 		albums, err := s.r.GetAlbums(c)
 		if err != nil {
-			if err := c.AbortWithError(http.StatusBadRequest, toCtx.Err()); err != nil {
-				log.Println(err)
-			}
-
+			c.JSON(http.StatusBadRequest, gin.H{"message": "album BD gone!"})
 			return
 		}
 
@@ -101,10 +98,11 @@ func (s Controller) GetAlbums(c *gin.Context) {
 
 	select {
 	case <-toCtx.Done():
-		err := c.AbortWithError(http.StatusRequestTimeout, toCtx.Err())
-		log.Printf("Error: %v", err)
-	case albumsDto := <-ch:
-		c.JSON(http.StatusOK, albumsDto)
+		c.JSON(http.StatusRequestTimeout, gin.H{"message": "album BD timeout"})
+	case albumsDto, ok := <-ch:
+		if ok {
+			c.JSON(http.StatusOK, albumsDto)
+		}
 	}
 }
 
@@ -117,6 +115,7 @@ func (s Controller) GetAlbumByID(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"message": "album not found"})
 		}
 		c.JSON(http.StatusOK, s.addOData(newAlbumDto(a)))
+		return
 	}
 	c.AbortWithStatus(http.StatusBadRequest)
 }
