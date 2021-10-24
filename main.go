@@ -1,7 +1,7 @@
 package main
 
 import (
-	"example/web-service-gin/album"
+	"example/web-service-gin/router"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -9,12 +9,10 @@ import (
 
 func main() {
 	log.SetFlags(log.LstdFlags)
-	router := gin.Default()
-	router.GET("/albums", album.GetAlbums)
-	router.GET("/albums/:id", album.GetAlbumByID)
-	router.POST("/albums", album.PostAlbums)
+	r := gin.Default()
+	router.RegisterRoutes(r)
 
-	if err := router.Run("localhost:8080"); err != nil {
+	if err := r.Run("localhost:8080"); err != nil {
 		log.Panic("unable to start the server")
 	}
 }
