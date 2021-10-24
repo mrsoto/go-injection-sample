@@ -51,7 +51,7 @@ func newAlbumDto(a album) albumDto {
 }
 
 func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
-	if s, ok := c.GetQuery("sleep"); ok {
+	if s, ok := c.GetQuery(p); ok {
 		if v, err := strconv.Atoi(s); err == nil {
 			return int64(v), true
 		}
