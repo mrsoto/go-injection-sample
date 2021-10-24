@@ -47,7 +47,7 @@ func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
 }
 
 // getAlbums responds with the list of all albums as JSON.
-func (s Services) GetAlbums(c *gin.Context) {
+func (s Controller) GetAlbums(c *gin.Context) {
 	toCtx, cancel := context.WithTimeout(c, 1*time.Millisecond)
 	ch := make(chan []albumDto, 1)
 
@@ -95,7 +95,7 @@ func (s Services) GetAlbums(c *gin.Context) {
 
 // getAlbumByID locates the album whose ID value matches the id
 // parameter sent by the client, then returns that album as a response.
-func (s Services) GetAlbumByID(c *gin.Context) {
+func (s Controller) GetAlbumByID(c *gin.Context) {
 	if id := c.Param("id"); len(id) != 0 {
 		a, err := s.r.GetAlbumByID(id, c)
 		if err != nil {
@@ -107,7 +107,7 @@ func (s Services) GetAlbumByID(c *gin.Context) {
 }
 
 // postAlbums adds an album from JSON received in the request body.
-func (s Services) PostAlbums(c *gin.Context) {
+func (s Controller) PostAlbums(c *gin.Context) {
 	var nAlbum albumDto
 
 	// Call BindJSON to bind the received JSON to
@@ -131,10 +131,10 @@ type Repository interface {
 	AddAlbum(persistence.Album, context.Context) error
 }
 
-type Services struct {
+type Controller struct {
 	r Repository
 }
 
-func NewServices(r Repository) Services {
-	return Services{r: r}
+func NewController(r Repository) Controller {
+	return Controller{r: r}
 }
