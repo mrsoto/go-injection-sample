@@ -41,8 +41,12 @@ func newAlbum(a albumDto) album {
 
 func newAlbumDto(a album) albumDto {
 	return albumDto{
-		ID: a.ID, Title: a.Title, Artist: a.Artist, Price: a.Price,
-		Discount: 0.5, FinalPrice: float32(a.Price) * 0.5,
+		ID:         a.ID,
+		Title:      a.Title,
+		Artist:     a.Artist,
+		Price:      a.Price,
+		Discount:   0.5,
+		FinalPrice: float32(a.Price) * 0.5,
 	}
 }
 
@@ -56,7 +60,7 @@ func getIntParam(c *gin.Context, p string) (pv int64, ok bool) {
 }
 
 // getAlbums responds with the list of all albums as JSON.
-func GetAlbums(c *gin.Context) {
+func (s Services) GetAlbums(c *gin.Context) {
 	toCtx, cancel := context.WithTimeout(c, 1*time.Millisecond)
 	ch := make(chan []albumDto, 1)
 
@@ -96,7 +100,7 @@ func GetAlbums(c *gin.Context) {
 
 // getAlbumByID locates the album whose ID value matches the id
 // parameter sent by the client, then returns that album as a response.
-func GetAlbumByID(c *gin.Context) {
+func (s Services) GetAlbumByID(c *gin.Context) {
 	id := c.Param("id")
 
 	// Loop over the list of albums, looking for
@@ -111,7 +115,7 @@ func GetAlbumByID(c *gin.Context) {
 }
 
 // postAlbums adds an album from JSON received in the request body.
-func PostAlbums(c *gin.Context) {
+func (s Services) PostAlbums(c *gin.Context) {
 	var nAlbum albumDto
 
 	// Call BindJSON to bind the received JSON to
@@ -123,4 +127,11 @@ func PostAlbums(c *gin.Context) {
 	// Add the new album to the slice.
 	albums = append(albums, newAlbum(nAlbum))
 	c.IndentedJSON(http.StatusCreated, newAlbum)
+}
+
+type Services struct {
+}
+
+func NewServices() Services {
+	return Services{}
 }

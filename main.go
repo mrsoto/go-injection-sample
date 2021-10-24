@@ -11,12 +11,14 @@ import (
 func main() {
 	log.SetFlags(log.LstdFlags)
 	r := gin.Default()
-	albumSrvs := router.Services{
-		GetAbums:     album.GetAlbums,
-		GetAlbumByID: album.GetAlbumByID,
-		PostAlbums:   album.PostAlbums,
-	}
-	router.RegisterRoutes(r, albumSrvs)
+
+	albumSrvs := album.NewServices()
+
+	router.RegisterRoutes(r, router.Controller{
+		GetAbums:     albumSrvs.GetAlbums,
+		GetAlbumByID: albumSrvs.GetAlbumByID,
+		PostAlbums:   albumSrvs.PostAlbums,
+	})
 
 	if err := r.Run("localhost:8080"); err != nil {
 		log.Panic("unable to start the server")
