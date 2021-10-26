@@ -44,8 +44,10 @@ func init() {
 	}
 }
 
-func (r RepositoryStub) AddAlbum(persistence.Album, context.Context) error {
-	return nil
+func (r RepositoryStub) AddAlbum(a persistence.Album, c context.Context) (persistence.Album, error) {
+	na := a
+	na.ID = "3"
+	return na, nil
 }
 
 func (r RepositoryStub) GetAlbumByID(id string, c context.Context) (persistence.Album, error) {
@@ -62,6 +64,10 @@ func (r RepositoryFailuresStub) GetAlbumByID(id string, c context.Context) (pers
 
 func (r RepositoryFailuresStub) GetAlbums(c context.Context) ([]persistence.Album, error) {
 	return nil, errors.New("failure")
+}
+
+func (r RepositoryFailuresStub) AddAlbum(a persistence.Album, c context.Context) (persistence.Album, error) {
+	return persistence.Album{}, errors.New("DB Error")
 }
 
 type configStub struct{}
@@ -175,16 +181,11 @@ func Test_GetAlbumsWhenDBFail(t *testing.T) {
 func Test_PostAlbumByID_whenSuccess(t *testing.T) {
 	ctrl := NewController(RepositoryStub{}, configStub{})
 	a := albumDto{
-		ID:         "4",
 		Title:      "Harry",
 		Artist:     "Mary",
 		Price:      300,
 		FinalPrice: 150,
 		Discount:   0.5,
-		Link: oData{
-			Url: "https://sample.com/albums/4",
-			All: "https://sample.com/albums",
-		},
 	}
 	_, w := setPostAlbumsRouter(ctrl, a)
 
@@ -199,9 +200,38 @@ func Test_PostAlbumByID_whenSuccess(t *testing.T) {
 		t.Error(err)
 	}
 	expected := a
+	expected.ID = "3"
+	expected.Link = oData{
+		Url: "https://sample.com/albums/3",
+		All: "https://sample.com/albums",
+	}
 
 	if diff := deep.Equal(actual, expected); diff != nil {
 		t.Error(diff)
+	}
+
+}
+
+func Test_PostAlbumByID_whenDbFail(t *testing.T) {
+	ctrl := NewController(RepositoryFailuresStub{}, configStub{})
+	a := albumDto{
+		Title:      "Harry",
+		Artist:     "Mary",
+		Price:      300,
+		FinalPrice: 150,
+		Discount:   0.5,
+	}
+	_, w := setPostAlbumsRouter(ctrl, a)
+
+	assert.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	body, err := ioutil.ReadAll(w.Body)
+	if err != nil {
+		t.Error("error unexpected")
+	}
+	payload := string(body[:])
+	expected := "{\"message\":\"album not accepted\"}"
+	if payload != expected {
+		t.Errorf("error actual=%s expected: %s", payload, expected)
 	}
 
 }

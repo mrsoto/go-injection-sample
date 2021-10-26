@@ -117,7 +117,6 @@ func (s Controller) GetAlbumByID(c *gin.Context) {
 		c.JSON(http.StatusOK, s.addOData(newAlbumDto(a)))
 		return
 	}
-	c.AbortWithStatus(http.StatusBadRequest)
 }
 
 // postAlbums adds an album from JSON received in the request body.
@@ -130,18 +129,19 @@ func (s Controller) PostAlbums(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "album not parsed"})
 		return
 	}
-	a := newAlbum(nAlbumDto)
-	if err := s.r.AddAlbum(a, c); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "album not accepted"})
+	a, err := s.r.AddAlbum(newAlbum(nAlbumDto), c)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "album not accepted"})
 		return
 	}
-	c.IndentedJSON(http.StatusCreated, s.addOData(nAlbumDto))
+	nDto := s.addOData(newAlbumDto(a))
+	c.IndentedJSON(http.StatusCreated, nDto)
 }
 
 type Repository interface {
 	GetAlbums(context.Context) ([]persistence.Album, error)
 	GetAlbumByID(string, context.Context) (persistence.Album, error)
-	AddAlbum(persistence.Album, context.Context) error
+	AddAlbum(persistence.Album, context.Context) (persistence.Album, error)
 }
 
 type Config interface {
