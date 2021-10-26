@@ -3,6 +3,8 @@ package persistence
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strconv"
 )
 
 func (r *Repository) fill() {
@@ -27,19 +29,30 @@ func (r *Repository) GetAlbumByID(id string, c context.Context) (Album, error) {
 	// Loop over the list of albums, looking for
 	// an album whose ID value matches the parameter.
 	for _, a := range r.albums {
-		if a.ID == id {
-			return a, nil
+		select {
+		case <-c.Done():
+			return Album{}, c.Err()
+		default:
+			if a.ID == id {
+				return a, nil
+			}
 		}
 	}
 	return Album{}, errors.New("not found")
 }
 
 // AddAlbum adds an album.
-func (r *Repository) AddAlbum(a Album, c context.Context) error {
+func (r *Repository) AddAlbum(a Album, c context.Context) (Album, error) {
 
+	lId := r.albums[len(r.albums)-1].ID
+	nId, err := strconv.Atoi(lId)
+	if err != nil {
+		return Album{}, err
+	}
+	a.ID = fmt.Sprintf("%d", nId+1)
 	// Add the new album to the slice.
 	r.albums = append(r.albums, a)
-	return nil
+	return a, nil
 }
 
 type Repository struct {
