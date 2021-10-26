@@ -44,12 +44,23 @@ func (r *Repository) GetAlbumByID(id string, c context.Context) (Album, error) {
 // AddAlbum adds an album.
 func (r *Repository) AddAlbum(a Album, c context.Context) (Album, error) {
 
-	lId := r.albums[len(r.albums)-1].ID
-	nId, err := strconv.Atoi(lId)
-	if err != nil {
-		return Album{}, err
+	nID := 0
+	for _, a = range r.albums {
+		select {
+		case <-c.Done():
+			return Album{}, c.Err()
+		default:
+			if i, err := strconv.Atoi(a.ID); err == nil {
+				if i > nID {
+					nID = i
+				}
+			} else {
+				return Album{}, fmt.Errorf("invalid ID in database (%s)", a.ID)
+			}
+		}
 	}
-	a.ID = fmt.Sprintf("%d", nId+1)
+
+	a.ID = fmt.Sprintf("%d", nID+1)
 	// Add the new album to the slice.
 	r.albums = append(r.albums, a)
 	return a, nil

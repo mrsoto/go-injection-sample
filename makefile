@@ -44,6 +44,10 @@ watch:
 	ulimit -n 100
 	reflex -s -g '**/*.go' -G '**/*_test.go' make run
 
+watch_test: 
+	ulimit -n 100
+	reflex -s -g '**/*.go' -G '**/*_test.go' make test
+
 deps: installReflect
 
 installReflect:

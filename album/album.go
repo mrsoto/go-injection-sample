@@ -123,18 +123,19 @@ func (s Controller) GetAlbumByID(c *gin.Context) {
 func (s Controller) PostAlbums(c *gin.Context) {
 	var nAlbumDto albumDto
 
-	// Call BindJSON to bind the received JSON to
-	// newAlbum.
 	if err := c.BindJSON(&nAlbumDto); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "album not parsed"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "album no parseable"})
 		return
 	}
+
 	a, err := s.r.AddAlbum(newAlbum(nAlbumDto), c)
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"message": "album not accepted"})
 		return
 	}
+
 	nDto := s.addOData(newAlbumDto(a))
+
 	c.IndentedJSON(http.StatusCreated, nDto)
 }
 

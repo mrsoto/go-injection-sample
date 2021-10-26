@@ -233,5 +233,29 @@ func Test_PostAlbumByID_whenDbFail(t *testing.T) {
 	if payload != expected {
 		t.Errorf("error actual=%s expected: %s", payload, expected)
 	}
+}
 
+func setPostAlbumsJsonRouter(ctrl Controller, p string) (*http.Request, *httptest.ResponseRecorder) {
+	r := gin.New()
+
+	r.POST("/albums", ctrl.PostAlbums)
+
+	body := bytes.NewBufferString(p)
+	req, err := http.NewRequest(http.MethodPost, "/albums", body)
+	if err != nil {
+		panic(err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return req, w
+}
+
+func Test_PostAlbumByID_whenJsonError(t *testing.T) {
+	ctrl := NewController(RepositoryStub{}, configStub{})
+
+	_, w := setPostAlbumsJsonRouter(ctrl, "}")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
