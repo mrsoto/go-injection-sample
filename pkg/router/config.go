@@ -11,6 +11,5 @@ func (c Config) GetBaseUrl() string {
 }
 
 func (c Config) Child(p string) Config {
-	c.BaseUrl = fmt.Sprintf("%s/%s", c.BaseUrl, p)
-	return c
+	return Config{BaseUrl: fmt.Sprintf("%s/%s", c.BaseUrl, p)}
 }
