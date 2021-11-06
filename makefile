@@ -1,19 +1,15 @@
 OUT=server
 
-all: clean vet build linter test
+all: ${OUT}
 
-.PHONY: all
+.PHONY: all clean run
 
 vet:
 	go vet ./...
 	shadow ./...
 
-.PHONY: vet
-
 linter:
 	golangci-lint run
-
-.PHONY: linter
 
 test:
 	go test -coverprofile=cover.out -timeout 10s ./...
@@ -21,24 +17,9 @@ test:
 race:
 	go test -race -timeout 10s ./...
 
-
-.PHONY: test race
-
 cover: test
 	go tool cover -html=cover.out
-
-.PHONY: cover
-
-build: 
-	go build -o ${OUT} cmd/server/main.go
-
-.PHONY: build cmd/server/main.go
-
-run: build
-	./server
-
-.PHONY: run
-
+	
 clean:
 	go clean
 	rm -f ${OUT}
@@ -56,3 +37,11 @@ deps: installReflect
 
 installReflect:
 	go install github.com/cespare/reflex@latest
+
+${OUT}: build
+
+build: 
+	go build -o ${OUT} cmd/server/main.go
+
+run: ${OUT}
+	./${OUT}
