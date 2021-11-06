@@ -26,9 +26,9 @@ cover: test
 .PHONY: cover
 
 build: 
-	go build -o ${OUT} main.go
+	go build -o ${OUT} cmd/server/main.go
 
-.PHONY: build
+.PHONY: build cmd/server/main.go
 
 run: build
 	./server
