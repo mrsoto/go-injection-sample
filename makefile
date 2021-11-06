@@ -18,7 +18,11 @@ linter:
 test:
 	go test -coverprofile=cover.out -timeout 10s ./...
 
-.PHONY: test
+race:
+	go test -race -timeout 10s ./...
+
+
+.PHONY: test race
 
 cover: test
 	go tool cover -html=cover.out

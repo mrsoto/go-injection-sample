@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"example/web-service-gin/album/private/persistence"
+	"example/web-service-gin/pkg/album/internal/persistence"
 
 	"github.com/gin-gonic/gin"
 )

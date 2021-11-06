@@ -2,6 +2,7 @@ package persistence
 
 import (
 	"context"
+	"example/web-service-gin/pkg/album/internal/persistence"
 	"testing"
 
 	"github.com/go-playground/assert/v2"
@@ -46,7 +47,7 @@ func Test_GetAlbum_whenTimeOut(t *testing.T) {
 func Test_AddAlbum(t *testing.T) {
 
 	r := NewInMemoryRepository()
-	a := Album{ID: "newId"}
+	a := persistence.Album{ID: "newId"}
 
 	newA, err := r.AddAlbum(a, context.Background())
 
@@ -59,22 +60,22 @@ func Test_AddAlbums_whenCanceled(t *testing.T) {
 	r := NewInMemoryRepository()
 	c, cancel := context.WithCancel(context.Background())
 	cancel()
-	a := Album{ID: "newId"}
+	a := persistence.Album{ID: "newId"}
 
 	newA, err := r.AddAlbum(a, c)
 
 	assert.NotEqual(t, err, nil)
-	assert.Equal(t, newA, Album{})
+	assert.Equal(t, newA, persistence.Album{})
 }
 
 func Test_AddAlbums_whenInvalidData(t *testing.T) {
 
 	r := NewInMemoryRepository()
 	r.albums[0].ID = "a"
-	a := Album{ID: "newId"}
+	a := persistence.Album{ID: "newId"}
 
 	newA, err := r.AddAlbum(a, context.Background())
 
 	assert.NotEqual(t, err, nil)
-	assert.Equal(t, newA, Album{})
+	assert.Equal(t, newA, persistence.Album{})
 }

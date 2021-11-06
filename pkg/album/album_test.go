@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"example/web-service-gin/album/private/persistence"
+	"example/web-service-gin/pkg/album/internal/persistence"
 	"io/ioutil"
 	"log"
 	"net/http"
