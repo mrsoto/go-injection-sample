@@ -71,8 +71,9 @@ func (s Controller) GetAlbums(c *gin.Context) {
 		defer close(ch)
 
 		sleepMs, sleepOk := getIntParam(c, "sleep")
-		log.Printf("sleep: %v %d\n", sleepOk, sleepMs)
-
+		if sleepOk {
+			log.Printf("sleep: %v %d\n", sleepOk, sleepMs)
+		}
 		albums, err := s.r.GetAlbums(c)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"message": "album BD gone!"})
@@ -87,7 +88,6 @@ func (s Controller) GetAlbums(c *gin.Context) {
 				break outher
 			default:
 				albumsDto = append(albumsDto, s.addOData(newAlbumDto(a)))
-				log.Printf("Album: %s\n", a.ID)
 				if sleepOk {
 					time.Sleep(time.Duration(sleepMs) * time.Millisecond)
 				}
